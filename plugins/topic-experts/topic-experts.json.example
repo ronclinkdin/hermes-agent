@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "chat_ids": ["-1001234567890"],
+  "quiet_seconds": 180,
+  "restart": true,
+  "restart_mode": "graceful",
+  "require_idle": true,
+  "max_defer_seconds": 1800,
+  "graceful_escalate_seconds": 120,
+  "greet": true,
+  "first_message_bootstrap": true,
+  "skip_names": ["general"],
+  "profile_prefix": "exp-",
+  "max_profiles": 20,
+  "model": "glm-5.3-flash",
+  "provider": "opencode-go",
+  "base_url": "http://localhost:11435/v1"
+}

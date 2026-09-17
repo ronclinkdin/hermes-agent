@@ -466,6 +466,7 @@ class TestOnPlatformUpdateAuthBoundary:
         update = MagicMock()
         update.message_reaction = None  # a future, not-yet-wired event type
         update.edited_message = None
+        update.message = None  # no message either: no extractor may claim it
         # Simulate that future normalization produced an event for it.
         a._normalize_platform_event = lambda u: {  # type: ignore[assignment]
             "platform": "telegram", "event_type": "future", "payload": {},

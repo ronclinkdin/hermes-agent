@@ -1,0 +1,7 @@
+name: topic-experts
+version: "1.0.0"
+description: "Auto-provisions an isolated Hermes expert profile for every Telegram forum topic. Watches forum_topic_created/edited, builds the profile, registers a gateway profile_route, greets with a topic-aware onboarding message, and batches one graceful gateway restart. A first-message safety net covers missed creation events."
+author: Ron Cohen
+hooks:
+  - gateway_platform_event
+  - pre_llm_call

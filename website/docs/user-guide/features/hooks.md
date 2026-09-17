@@ -1306,6 +1306,9 @@ Every payload is additive and event-specific; there is no monolithic gateway pay
 | `message_deleted` | discord | `chat_id: str`, `message_id: str`, `thread_id: str \| None`, `author_id: str \| None`. Discord's delete event does not identify the deleter; the authorized source is the deleted message's author, and uncached deletions never fire. |
 | `thread_created` | discord | `thread_id: str`, `parent_chat_id: str \| None`, `name: str \| None`, `owner_id: str \| None`. |
 | `thread_renamed` | discord | `thread_id: str`, `parent_chat_id: str \| None`, `old_name: str \| None`, `new_name: str`. Fired only when the name actually changed; other thread updates (archive, slowmode, tags) are dropped. Discord's thread-update event carries no actor, so the thread owner is the authorized source. |
+| `forum_topic_created` | telegram | `chat_id: str`, `thread_id: str`, `name: str \| None`, `icon_custom_emoji_id: str \| None`, `creator_user_id: str \| None`, `is_forum: bool`. The Bot API exposes no read method for a forum topic's name, so this service message is the only source of truth for what a topic is about. |
+| `forum_topic_edited` | telegram | Same fields as `forum_topic_created`. Fired when a topic is renamed; consumers use it to adopt the new label. |
+| `forum_topic_closed` / `forum_topic_reopened` | telegram | `chat_id: str`, `thread_id: str`, `name: None`, plus the shared optional fields. Close/reopen updates carry no name. |
 
 The bot's own progressive message edits (streaming) never fire `message_edited` on Discord — bot-authored events are dropped at the fire-site.
 

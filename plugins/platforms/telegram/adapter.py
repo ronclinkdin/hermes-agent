@@ -2880,6 +2880,25 @@ class TelegramAdapter(BasePlatformAdapter):
             if not source.user_id or not source.chat_id:
                 raise ValueError("gateway_platform_event message_edited requires editor and chat identities")
             return source
+        message = getattr(update, "message", None)
+        if message is not None and (
+            getattr(message, "forum_topic_created", None) is not None
+            or getattr(message, "forum_topic_edited", None) is not None
+            or getattr(message, "forum_topic_closed", None) is not None
+            or getattr(message, "forum_topic_reopened", None) is not None
+        ):
+            # Telegram delivers these as service messages: ``from_user`` is the creator and is
+            # absent for some topic-lifecycle updates, so fall back to the chat identity rather
+            # than failing closed on an event consumers (e.g. per-topic expert provisioning) need.
+            source = self._source_from_message_for_auth(message)
+            if not source.user_id:
+                chat = getattr(message, "chat", None)
+                chat_id = str(getattr(chat, "id", "")).strip() if chat is not None else ""
+                if not chat_id:
+                    raise ValueError("gateway_platform_event forum_topic requires chat identity")
+                source.user_id = chat_id
+                source.user_name = str(getattr(chat, "title", "") or "").strip() or None
+            return source
         raise ValueError("gateway_platform_event source extraction has no extractor for this update type")
 
     def _normalize_platform_event(self, update) -> Optional[Dict[str, Any]]:
@@ -2889,7 +2908,56 @@ class TelegramAdapter(BasePlatformAdapter):
             return self._normalize_reaction_event(update)
         if getattr(update, "edited_message", None) is not None:
             return self._normalize_message_edited_event(update)
+        if getattr(update, "message", None) is not None:
+            return self._normalize_forum_topic_event(update)
         return None
+
+    def _normalize_forum_topic_event(self, update) -> Optional[Dict[str, Any]]:
+        """``message.forum_topic_created`` / ``forum_topic_edited`` → ``forum_topic_created`` /
+        ``forum_topic_edited`` events carrying the topic ``name``.
+
+        The Bot API exposes no read method for a forum topic's name, so this service message is the
+        only source of truth for "what is this topic about". Without it the gateway sees a thread id
+        and nothing else. Returns ``None`` for non-topic messages so the catch-all stays silent.
+        """
+        message = getattr(update, "message", None)
+        if message is None:
+            return None
+        created = getattr(message, "forum_topic_created", None)
+        edited = getattr(message, "forum_topic_edited", None)
+        closed = getattr(message, "forum_topic_closed", None)
+        reopened = getattr(message, "forum_topic_reopened", None)
+        if created is None and edited is None and closed is None and reopened is None:
+            return None
+        chat = getattr(message, "chat", None)
+        chat_id = getattr(chat, "id", None) if chat is not None else None
+        thread_id_raw = getattr(message, "message_thread_id", None)
+        if not self._is_id_like(chat_id) or not self._is_id_like(thread_id_raw):
+            return None
+        creator = getattr(message, "from_user", None)
+        if closed is not None or reopened is not None:
+            event_type = "forum_topic_closed" if closed is not None else "forum_topic_reopened"
+            name = None
+        elif created is not None:
+            event_type, name = "forum_topic_created", getattr(created, "name", None)
+        else:
+            event_type, name = "forum_topic_edited", getattr(edited, "name", None)
+        if name is not None and not isinstance(name, str):
+            name = None
+        return {
+            "platform": "telegram",
+            "event_type": event_type,
+            "payload": {
+                "chat_id": str(chat_id)[:128],
+                "thread_id": str(thread_id_raw)[:128],
+                "name": name[:256] if name else None,
+                "icon_custom_emoji_id": (str(getattr(created, "icon_custom_emoji_id", None))[:128]
+                                         if created is not None and getattr(created, "icon_custom_emoji_id", None) else None),
+                "creator_user_id": (str(getattr(creator, "id", ""))[:128] if creator is not None
+                                    and getattr(creator, "id", None) is not None else None),
+                "is_forum": bool(getattr(chat, "is_forum", False)) if chat is not None else False,
+            },
+        }
 
     @staticmethod
     def _is_id_like(value: Any) -> bool:
