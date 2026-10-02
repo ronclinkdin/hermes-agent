@@ -374,7 +374,8 @@ def seed_shared_memory(home: Path) -> list[str]:
 
 
 def write_soul(home: Path, role: str, scope: str) -> None:
-    title = f"{role.title()} Expert"
+    # role here is the LLM-generated professional title (e.g. "B2B Media Buying Strategist")
+    title = role.title() if role else "Expert"
     body = SOUL_TEMPLATE.format(title=title, role=role, scope=scope, rules=OUTPUT_RULES)
     (home / "SOUL.md").write_text(body, encoding="utf-8")
 
@@ -505,17 +506,17 @@ def rename_profile(old: str, role: str, scope: str, thread_id: str = "") -> tupl
     return slug, backup.name
 
 
-def llm_enrich(role: str, timeout: int = 25) -> str:
-    """One short call to the local router for a domain brief. Falls back to template.
+def llm_enrich(role: str, timeout: int = 25) -> tuple[str, str]:
+    """Ask the router for a professional title + scope. Returns (title, scope).
 
-    The opencode-go router caps output at ~400 tokens and its reasoning models can spend
-    the whole budget on hidden reasoning, leaving ``content`` empty with finish_reason
-    ``length``. Read ``reasoning_content`` as a fallback before giving up.
+    The opencode-go router caps output at ~400 tokens. If content is empty,
+    fall back to reasoning_content. Parse JSON if possible; else return raw.
     """
     prompt = (
-        f"Topic: '{role}'. "
-        f"Return ONLY a JSON object with no markdown, no backticks, no preamble:\n"
-        f'{{"domain": "one-line classification", "deliverables": ["3 specific outputs this expert produces"], "tools": ["3 key tools/methods"], "scope": "one sentence of what this expert owns end-to-end"}}'
+        f"Topic name: '{role}'. "
+        f"Return ONLY valid JSON with no markdown, no backticks, no preamble:\n"
+        f'{{"title": "Professional expert title (2-4 words, specific not generic)", '
+        f'"scope": "One sentence: what this expert owns end-to-end, no filler"}}'
     )
     body = json.dumps({"model": ROUTER_MODEL, "max_tokens": 500, "temperature": 0.3,
                        "messages": [{"role": "user", "content": prompt}]}).encode()
@@ -527,10 +528,18 @@ def llm_enrich(role: str, timeout: int = 25) -> str:
             payload = json.loads(resp.read().decode())
         msg = payload["choices"][0]["message"]
         text = (msg.get("content") or "").strip() or (msg.get("reasoning_content") or "").strip()
-        return text
+        try:
+            data = json.loads(text)
+            title = data.get("title", role).strip()
+            scope = data.get("scope", "").strip()
+            return (title, scope)
+        except json.JSONDecodeError:
+            # fallback: first non-empty line as title, rest as scope
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            return (lines[0] if lines else role, " ".join(lines[1:]) if len(lines) > 1 else "")
     except Exception as exc:  # noqa: BLE001
         print(f"  enrich skipped ({type(exc).__name__}), using template scope")
-        return ""
+        return (role, "")
 
 
 # ---------------------------------------------------------------- commands
@@ -566,7 +575,7 @@ def cmd_provision(args):
 
     scope = (args.scope or "").strip()
     if not scope and not args.no_enrich and not args.dry_run:
-        scope = llm_enrich(role)
+        _title, scope = llm_enrich(role)
     if not scope:
         scope = (f"Own {role} work for this workspace: research, decisions, artifacts and execution in this domain. "
                  f"Produce working output, not opinions.")

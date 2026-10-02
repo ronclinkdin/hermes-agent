@@ -366,21 +366,21 @@ def _provision(job: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
         fut_enrich = pool.submit(tp.llm_enrich, name)
         fut_profile.result()
         try:
-            scope = (fut_enrich.result() or "").strip()
+            enriched_title, enriched_scope = fut_enrich.result()
         except Exception as exc:  # noqa: BLE001
             logger.info("[topic-experts] enrich skipped for %r (%s), using template scope", name, exc)
-            scope = ""
-    if not scope:
-        scope = (f"Own {name} work for this workspace. Produce the artifact, not a description of it.")
+            enriched_title, enriched_scope = name, ""
+    title = enriched_title or name
+    scope = enriched_scope or f"Own {name} work for this workspace. Produce the artifact, not a description of it."
     home = HERMES_HOME / "profiles" / profile
     tp.copy_env_allowlist(home)
     shared_mem = tp.seed_shared_memory(home)
     if shared_mem:
         logger.info("[topic-experts] seeded shared owner memory (%s) for %s",
                     ",".join(shared_mem), profile)
-    tp.write_soul(home, name, scope)
+    tp.write_soul(home, title, scope)
     seeded = tp.seed_skills(home, name)
-    tp.write_role_skill(home, name, scope, seeded)
+    tp.write_role_skill(home, title, scope, seeded)
     tp.write_config(home, name, cfg.get("model", DEFAULTS["model"]),
                     cfg.get("provider", DEFAULTS["provider"]),
                     cfg.get("base_url", DEFAULTS["base_url"]))
@@ -406,14 +406,14 @@ def _rename(job: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
     if not old:
         raise RuntimeError("rename job without rename_from")
     try:
-        scope = (tp.llm_enrich(name) or "").strip()
+        enriched_title, enriched_scope = tp.llm_enrich(name)
     except Exception as exc:  # noqa: BLE001
         logger.info("[topic-experts] enrich skipped for %r (%s), using template scope", name, exc)
-        scope = ""
-    if not scope:
-        scope = (f"Own {name} work for this workspace. Produce the artifact, not a description of it.")
-    new_profile, backup = tp.rename_profile(old, name, scope, str(job.get("thread_id") or ""))
-    return {"profile": new_profile, "role": name, "scope": scope, "route_action": "renamed",
+        enriched_title, enriched_scope = name, ""
+    title = enriched_title or name
+    scope = enriched_scope or f"Own {name} work for this workspace. Produce the artifact, not a description of it."
+    new_profile, backup = tp.rename_profile(old, title, scope, str(job.get("thread_id") or ""))
+    return {"profile": new_profile, "role": title, "scope": scope, "route_action": "renamed",
             "seeded_skills": [], "allowlist": [], "backup": backup, "temp": False}
 
 
