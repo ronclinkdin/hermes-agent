@@ -95,9 +95,12 @@ def die(msg: str, code: int = 1):
 
 
 def slugify(text: str, maxlen: int = 26) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower().strip())
-    s = re.sub(r"-+", "-", s).strip("-")
-    return s[:maxlen].strip("-") or "expert"
+    s = re.sub(r"[^\w]+", "-", text)
+    s = re.sub(r"-+", "-", s).strip("-").lower()
+    slug = s[:maxlen].strip("-")
+    if not slug:
+        slug = "topic-" + hex(abs(hash(text)) & 0xFFFF)[2:]
+    return slug
 
 
 def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
@@ -331,6 +334,44 @@ def copy_env_allowlist(home: Path) -> list[str]:
     dest.write_text(header + "\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
     os.chmod(dest, 0o600)
     return names
+
+
+SHARED_MEMORY_MARKER = "<!-- topic-experts shared-owner-context -->"
+
+
+def seed_shared_memory(home: Path) -> list[str]:
+    """Copy durable owner context (default profile USER.md/MEMORY.md) into a new
+    expert profile so it doesn't start with amnesia about the owner.
+
+    The built-in store reads exactly these two filenames under the profile's
+    own memories/ dir, so the seed lands where recall already looks.
+    Idempotent: skips files already carrying the marker.
+    """
+    src_dir = HERMES_HOME / "memories"
+    dest_dir = home / "memories"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    seeded = []
+    for name in ("USER.md", "MEMORY.md"):
+        src = src_dir / name
+        if not src.exists():
+            continue
+        try:
+            content = src.read_text(encoding="utf-8", errors="ignore").strip()
+        except OSError:
+            continue
+        if not content:
+            continue
+        dest = dest_dir / name
+        existing = dest.read_text(encoding="utf-8", errors="ignore") if dest.exists() else ""
+        if SHARED_MEMORY_MARKER in existing:
+            continue
+        header = (f"{SHARED_MEMORY_MARKER}\n"
+                  f"# Shared owner context (seeded from the default profile at provisioning; "
+                  f"keep updated in place)\n\n")
+        rest = ("\n\n" + existing.strip()) if existing.strip() else "\n"
+        dest.write_text(header + content + rest, encoding="utf-8")
+        seeded.append(name)
+    return seeded
 
 
 def write_soul(home: Path, role: str, scope: str) -> None:

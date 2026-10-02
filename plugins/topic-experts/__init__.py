@@ -73,7 +73,7 @@ DEFAULTS: Dict[str, Any] = {
     "skip_names": ["general"],
     "profile_prefix": "exp-",
     # Refuse to auto-create beyond this many auto profiles. A backstop, not a policy.
-    "max_profiles": 20,
+    "max_profiles": 50,
     "model": "glm-5.3-flash",
     "provider": "opencode-go",
     "base_url": "http://localhost:11435/v1",
@@ -373,6 +373,11 @@ def _provision(job: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
     if not scope:
         scope = (f"Own {name} work for this workspace. Produce the artifact, not a description of it.")
     home = HERMES_HOME / "profiles" / profile
+    tp.copy_env_allowlist(home)
+    shared_mem = tp.seed_shared_memory(home)
+    if shared_mem:
+        logger.info("[topic-experts] seeded shared owner memory (%s) for %s",
+                    ",".join(shared_mem), profile)
     tp.write_soul(home, name, scope)
     seeded = tp.seed_skills(home, name)
     tp.write_role_skill(home, name, scope, seeded)
