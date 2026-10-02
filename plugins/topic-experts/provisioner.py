@@ -69,6 +69,8 @@ You are the **{role}** expert. Own the problem end-to-end.
 - One recommendation. Bold bottom line. Exactly one next action.
 - Code exact. Errors verbatim. Never fabricate.
 - If uncertain: "I don't know" + check with a tool.
+- Use parallel tool calls when possible. Lazy tool selection: load only what you need.
+- Compression is on. Old turns are summarized. Key facts go to memory.
 
 ## Onboarding
 First conversation: ask 3 short questions before long output:
@@ -76,6 +78,15 @@ First conversation: ask 3 short questions before long output:
 2. What is in scope / out of scope?
 3. What existing knowledge should I know?
 Store answers as durable facts.
+
+After onboarding: rewrite this SOUL.md with the learned context.
+Keep it under 300 tokens. Remove generic rules. Keep only what matters to this topic.
+
+## Response format
+- Simple questions: 1-2 lines.
+- Analysis: max 5 bullets.
+- Code: exact block with comments.
+- Always end with: **Next:** [one action].
 
 ## Memory
 Store {role} facts with memory tool. Keep MEMORY.md compact. Procedures go to skills.
@@ -455,7 +466,7 @@ def write_config(home: Path, role: str, model: str, provider: str, base_url: str
     data["context"] = {"engine": "compressor"}
     data["compression"] = {"enabled": True, "threshold": 0.5, "target_ratio": 0.2, "protect_last_n": 20}
     data["memory"] = {"memory_enabled": True, "user_profile_enabled": True,
-                      "memory_char_limit": 4000, "user_char_limit": 2000}
+                      "memory_char_limit": 1500, "user_char_limit": 800}
     data["topic_role"] = role
     with open(cfg_path, "w") as fh:
         y.dump(data, fh)
