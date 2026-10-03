@@ -525,9 +525,11 @@ def llm_enrich(role: str, timeout: int = 25) -> tuple[str, str]:
     """
     prompt = (
         f"Topic name: '{role}'. "
+        f"Owner: Ron Cohen, bootstrapped startup founder (roqy.io), former DevOps CTO, "
+        f"Sri Lanka, budget $680/mo, pSEO-first. "
         f"Return ONLY valid JSON with no markdown, no backticks, no preamble:\n"
-        f'{{"title": "Professional expert title (2-4 words, specific not generic)", '
-        f'"scope": "One sentence: what this expert owns end-to-end, no filler"}}'
+        f'{{"title": "Professional expert title (2-4 words, specific, relevant to a bootstrapped founder)", '
+        f'"scope": "One sentence: what this expert owns end-to-end for Ron, no filler"}}'
     )
     body = json.dumps({"model": ROUTER_MODEL, "max_tokens": 500, "temperature": 0.3,
                        "messages": [{"role": "user", "content": prompt}]}).encode()
