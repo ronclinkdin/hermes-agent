@@ -725,23 +725,22 @@ def _scope_lines(scope: str, limit: int = 3, max_chars: int = 140) -> list[str]:
 
 def greeting_text(role: str, profile: str, scope: str = "", temp: bool = False) -> str:
     if temp:
-        return (f"It looks like a new topic just opened here that I haven't met yet ({role}).\n"
-                f"Until we set it up properly, I'm the temporary expert here ({profile}).\n"
-                f"Reply in one sentence: what is this topic's name and goal?\n"
-                f"(Or just rename the topic above and I'll take care of the rest.)")
-    head = (f"I'm the {role} expert for this topic.\n"
-            f"Running as a separate profile ({profile}): my own memory, skills, and sessions.")
+        return (f"New topic detected: {role}.\n"
+                f"I'm a temporary expert ({profile}) until this topic is properly set up.\n"
+                f"One sentence: what is this topic's real name and goal?\n"
+                f"(Or rename the topic above and I'll configure everything.)")
+    head = f"I'm your {role}."
     context = ""
     points = _scope_lines(scope)
     if points:
-        context = ("\nWhat I understand about this topic:\n" +
-                   "\n".join(f"- {p}" for p in points))
-    return (f"{head}{context}\n"
-            f"To aim me precisely, answer briefly:\n"
-            f"1. What is your goal for this topic?\n"
-            f"2. What is my role here (what's in / what's out)?\n"
-            f"3. What knowledge or materials do you already have that I should know?\n"
-            f"Just write here directly, no mention needed.")
+        context = ("\nMy understanding:\n" +
+                   "\n".join(f"- {p}" for p in points[:3]))
+    return (f"{head}{context}\n\n"
+            f"Three short questions to calibrate me:\n"
+            f"1. What is the ONE goal for this topic?\n"
+            f"2. What is IN my scope / what stays OUT?\n"
+            f"3. What do you already have (docs, data, links) that I should know?\n\n"
+            f"Answer here directly. Short answers beat long ones.")
 
 
 def send_topic_greeting(chat_id, thread_id, role: str, profile: str, scope: str = "",

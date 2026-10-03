@@ -457,7 +457,7 @@ def _worker_loop() -> None:
                     try:
                         tp = _load_topic_profile_module()
                         res = tp.send_topic_greeting(job["chat_id"], job["thread_id"],
-                                                     job.get("name") or "topic",
+                                                     result.get("role") or job.get("name") or "topic",
                                                      result.get("profile") or "",
                                                      result.get("scope") or "",
                                                      result.get("temp", False))
