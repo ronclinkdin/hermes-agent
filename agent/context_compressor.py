@@ -1027,15 +1027,27 @@ Spend up to ~{_LEAN_SESSION_LOG_BUDGET_TOKENS} tokens here — this section is t
 # Anchor ledger: mechanically harvested exact identifiers, no LLM, so needle facts
 # (SHAs, ids, error strings) cannot be paraphrased away; also a session_search map.
 _LEAN_ANCHOR_HEADING = "## Anchor Index (mechanically extracted, exact)"
-_LEAN_ANCHOR_BUDGET_CHARS = 7_000
+_LEAN_ANCHOR_BUDGET_CHARS = 14_000
 _ANCHOR_PATTERNS: list[tuple[str, re.Pattern[str], int]] = [
     ("PRs/issues", re.compile(r"#\d{3,6}\b"), 120),
     ("commits", re.compile(r"\b[0-9a-f]{9,40}\b"), 40),
     ("branches", re.compile(r"\b(?:fix|feat|docs|refactor|chore|salvage|ent)/[A-Za-z0-9._/-]{3,60}"), 40),
-    ("files", re.compile(r"\b[\w./-]+/[\w.-]+\.(?:py|ts|tsx|js|rs|md|yaml|yml|json|toml|sh)\b"), 80),
+    ("files", re.compile(r"\b[\w./-]+/[\w.-]+\.(?:py|ts|tsx|js|rs|md|yaml|yml|json|toml|sh|aspx)\b"), 80),
     ("errors", re.compile(r"\b(?:[A-Z][a-zA-Z]*Error|Exception|ENOSPC|EACCES|SIGKILL|Traceback)\b[^\n]{0,90}"), 40),
     ("handles", re.compile(r"@[A-Za-z0-9-]{3,30}\b"), 40),
-    ("urls", re.compile(r"https?://[^\s)\"']{10,110}"), 30),
+    ("urls", re.compile(r"https?://[^\s)\"']{10,110}"), 60),
+    ("metrics", re.compile(r"(?im)^[^\n]{0,60}?\b(?:total|keys|routes|nodes|files|lines|count|balance|stars|modules|functions|trackers)\b[^\n]{0,40}?\b\d[\d,.]{1,9}\b[^\n]{0,20}"), 50),
+    ("counted", re.compile(r"\b\d[\d,.]{0,9}\s+(?:nodes|routes|keys|files|modules|functions|trackers|paths|requests)\b"), 40),
+    ("routes_auth", re.compile(r"/[A-Za-z0-9_./-]*(?:auth|login|payment|liveness|admin|cardholder|identif)[A-Za-z0-9_./-]*", re.IGNORECASE), 60),
+    ("routes", re.compile(r"/[A-Za-z][A-Za-z0-9_./-]{4,70}"), 120),
+    ("ports", re.compile(r":\d{4,5}\b"), 30),
+    ("sizes", re.compile(r"\b\d{3,7}\b(?=\s+[A-Z][a-z]{2}\s+\d{1,2}\s)"), 40),
+    ("versions", re.compile(r"\b\d+\.\d+(?:\.\d+){1,2}\b"), 40),
+    ("thousands", re.compile(r"\b\d{1,3}(?:,\d{3})+\b"), 30),
+    ("money", re.compile(r"\b\d[\d.]{1,9}\$|\$[\d,.]+\b"), 20),
+    ("http_codes", re.compile(r"\bHTTP \d{3}\b"), 30),
+    ("numbers", re.compile(r"\b\d{3,6}\b"), 80),
+    ("assets", re.compile(r"/[A-Za-z0-9_./-]*(?:SharedMedia|media|assets|static)/[\w./-]+"), 20),
 ]
 _ANCHOR_NOISE = frozenset({
     "@teknium", "@teknium1",  # session owner, in every transcript
@@ -2118,7 +2130,12 @@ If no outstanding task exists, write "None."]""",
         "constraints": (
             "[User preferences, coding style, constraints, important decisions. Any security or safety constraint "
             "the user stated (files/data to avoid, operations that must not be performed, credential-handling rules) "
-            "MUST be quoted VERBATIM here so it continues to apply after compaction — never paraphrase those.]"
+            "MUST be quoted VERBATIM here so it continues to apply after compaction — never paraphrase those.] "
+            "ANCHOR RULES: every numeric total or count produced by a scan, build or measurement MUST appear "
+            "verbatim with its own label (e.g. config_keys_total: 565). When two related counts exist (keys in a "
+            "window vs keys in total), write EACH with its own label — never merge. Include every file size, tool "
+            "version, host:port, HTTP/exit/error code, and currency amount verbatim. NEVER round numbers "
+            "(9840KB stays 9840KB, not 9.8MB). When in doubt whether an identifier is load-bearing, include it.]"
         ),
         "resolved_questions": (
             "[Questions the user asked that were ALREADY answered — include the answer so it is not repeated]"
