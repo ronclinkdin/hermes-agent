@@ -15,6 +15,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, Optional, Sequence
 
+from agent.errors import EmptyStreamError
+
 logger = logging.getLogger(__name__)
 
 # Synthetic code for the OpenAI SDK rejecting a provider's SSE ``data:`` field
@@ -962,12 +964,22 @@ def _by_status(c: _Ctx) -> Optional[Verdict]:
     return _STATUS_HANDLERS[status](c) if status in _STATUS_HANDLERS else default
 
 
+def _empty_stream_verdict(c: _Ctx) -> Optional[Verdict]:
+    """A stream that delivered nothing at all is a provider-side failure for THIS
+    endpoint (HTTP 200, 0 bytes — the upstream died silently). Same class as a 5xx:
+    let in-place stream retries run, then the fallback chain takes the request
+    (another provider can serve it) instead of the loop resigning to unknown."""
+    if isinstance(c.error, EmptyStreamError):
+        return _v(_R.overloaded, should_fallback=True)
+    return None
+
+
 # Stage order: plugin hooks → the provider's own profile hook → provider-specific special cases →
 # HTTP status → MoA shapes → structured error code → message patterns → SSL → disconnect +
 # large session → transport types → unknown (retryable with backoff).
 _STAGES: Sequence[Callable[[_Ctx], Optional[Verdict]]] = (
-    _plugin_verdict, _profile_verdict, _provider_special_cases, _by_status, _moa_special_cases,
-    _by_error_code, _by_message, _by_transport,
+    _plugin_verdict, _profile_verdict, _empty_stream_verdict, _provider_special_cases, _by_status,
+    _moa_special_cases, _by_error_code, _by_message, _by_transport,
 )
 
 
